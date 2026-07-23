@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+historico.db
+.env
+.idea/
+.vscode/
