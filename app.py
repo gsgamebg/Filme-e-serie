@@ -131,6 +131,24 @@ def set_cached_data(key, data):
         logging.error(f"Erro ao gravar no cache ({key}): {e}")
 
 # ── 4. EXTRATOR & RESOLVER DE STREAM DIRETO (.m3u8 / .mp4) ────────────────
+def unpack_js(packed_code):
+    try:
+        match = re.search(r"eval\(function\(p,a,c,k,e,d\)\{.*\}\('([^']*)',(\d+),(\d+),'([^']*)'\.split\('\|'\)", packed_code)
+        if not match:
+            return ""
+        p, a, c, k = match.groups()
+        a, c = int(a), int(c)
+        k_list = k.split('|')
+        def baseN(num, b):
+            return ((num == 0) and "0") or (baseN(num // b, b).lstrip("0") + "0123456789abcdefghijklmnopqrstuvwxyz"[num % b])
+        for idx, val in enumerate(k_list):
+            if val:
+                key_str = baseN(idx, a)
+                p = re.sub(r'\b' + key_str + r'\b', val, p)
+        return p
+    except Exception:
+        return ""
+
 def extract_direct_stream(embed_url):
     if not embed_url:
         return None, None
@@ -153,6 +171,12 @@ def extract_direct_stream(embed_url):
         res = HTTP.get(embed_url, headers=headers, timeout=8)
         html = res.text
 
+        # Tenta descompactar JS se houver script empacotado
+        if 'eval(function(p,a,c,k,e,d)' in html:
+            unpacked = unpack_js(html)
+            if unpacked:
+                html += "\n" + unpacked
+
         # 1. Busca por URLs .m3u8
         m3u8_match = re.search(r'(https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*)', html, re.IGNORECASE)
         if m3u8_match:
@@ -168,19 +192,29 @@ def extract_direct_stream(embed_url):
             return stream_url, 'mp4'
 
         # 3. Busca por definições de fontes em JWPlayer / Clappr (file: "...")
-        file_match = re.search(r'file\s*:\s*["\'](https?://[^"\']+)["\']', html)
+        file_match = re.search(r'(?:file|source|src)\s*:\s*["\'](https?://[^"\']+)["\']', html, re.IGNORECASE)
         if file_match:
             stream_url = file_match.group(1).replace('\\/', '/')
             stream_type = 'hls' if '.m3u8' in stream_url.lower() else 'mp4'
             set_cached_data(cache_key, {'direct_url': stream_url, 'type': stream_type})
             return stream_url, stream_type
 
-        # 4. Busca por iframes internos secundários
+        # 4. Busca em elementos HTML <video> ou <source>
         soup = BeautifulSoup(html, 'html.parser')
+        video_source = soup.select_one('video source[src], video[src]')
+        if video_source:
+            src = video_source.get('src')
+            if src:
+                stream_url = urljoin(embed_url, src)
+                stream_type = 'hls' if '.m3u8' in stream_url.lower() else 'mp4'
+                set_cached_data(cache_key, {'direct_url': stream_url, 'type': stream_type})
+                return stream_url, stream_type
+
+        # 5. Busca por iframes internos secundários
         sec_iframe = soup.select_one('iframe[src]')
         if sec_iframe:
             sec_src = sec_iframe.get('src')
-            if sec_src and sec_src != embed_url:
+            if sec_src and sec_src != embed_url and not sec_src.startswith('javascript:'):
                 sec_url = urljoin(embed_url, sec_src)
                 return extract_direct_stream(sec_url)
 

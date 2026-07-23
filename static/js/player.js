@@ -68,7 +68,7 @@ async function renderModalContent() {
     }
 
     const streamUrl = streamData.direct_url || rawPlayerUrl;
-    const isDirect = Boolean(streamData.direct_url || streamUrl.match(/\.(mp4|m3u8|webm)$/i));
+    const isDirect = Boolean(streamData.direct_url || streamUrl.match(/\.(mp4|m3u8|webm)($|\?)/i));
 
     body.innerHTML = `
         <div class="details-header">
@@ -98,7 +98,7 @@ async function renderModalContent() {
         ${streamUrl ? `
             <div id="playerContainer" class="player-container">
                 ${isDirect ? `
-                    <video id="customVideo" class="player-video-elem" crossorigin="anonymous" playsinline controlslist="nodownload"></video>
+                    <video id="customVideo" class="player-video-elem" crossorigin="anonymous" playsinline controlslist="nodownload" onclick="togglePlayPause()"></video>
                 ` : `
                     <iframe id="mainIframe" class="player-iframe-elem" src="${streamUrl}" referrerpolicy="no-referrer-when-downgrade" allowfullscreen allow="autoplay; encrypted-media"></iframe>
                     <div id="clickShield" class="click-shield" onclick="dismissClickShield()">
@@ -211,7 +211,7 @@ function initHlsOrDirectVideo(url, type) {
 
     const isHls = type === 'hls' || url.includes('.m3u8');
 
-    if (isHls && Hls.isSupported()) {
+    if (isHls && typeof Hls !== 'undefined' && Hls.isSupported()) {
         hlsInstance = new Hls({
             enableWorker: true,
             lowLatencyMode: true
@@ -219,13 +219,26 @@ function initHlsOrDirectVideo(url, type) {
         hlsInstance.loadSource(url);
         hlsInstance.attachMedia(video);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-            showToast('Stream HLS carregado com alta performance ⚡', '🚀');
+            showToast('Stream HLS pronto para exibição ⚡', '🚀');
+            video.play().catch(() => {});
         });
     } else if (video.canPlayType('application/vnd.apple.mpegurl') && isHls) {
         video.src = url;
+        video.play().catch(() => {});
     } else {
         video.src = url;
+        video.play().catch(() => {});
     }
+
+    video.addEventListener('play', () => {
+        const btn = document.getElementById('playPauseBtn');
+        if (btn) btn.textContent = '⏸';
+    });
+
+    video.addEventListener('pause', () => {
+        const btn = document.getElementById('playPauseBtn');
+        if (btn) btn.textContent = '▶';
+    });
 
     video.addEventListener('timeupdate', updatePlayerProgress);
     video.addEventListener('ended', () => {
@@ -248,7 +261,9 @@ function togglePlayPause() {
     const btn = document.getElementById('playPauseBtn');
     if (video) {
         if (video.paused) {
-            video.play();
+            video.play().catch(err => {
+                logging && console.log("Play falhou ou requer interação", err);
+            });
             if (btn) btn.textContent = '⏸';
         } else {
             video.pause();
