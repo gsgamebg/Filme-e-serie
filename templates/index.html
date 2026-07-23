@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#070913">
+    <title>CineFlix — Streaming de Alta Performance</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <!-- HLS.js para reprodução nativa de streams .m3u8 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="brand" onclick="switchCategory('todos', document.querySelector('.tab-btn'))">
+            <div class="logo-icon">🎬</div>
+            <div class="logo-text">CineFlix</div>
+            <span class="logo-tag">PRO</span>
+        </a>
+
+        <div class="header-actions">
+            <div class="search-box">
+                <span class="search-icon-left">🔍</span>
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar filmes, séries, animes...">
+                <span class="search-shortcut">/</span>
+            </div>
+
+            <select id="profileSelect" class="profile-selector" onchange="changeProfile(this.value)">
+                <option value="maria_clara">❤️ Maria Clara</option>
+                <option value="convidado">👤 Convidado</option>
+                <option value="kids">🎈 Kids</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <!-- HERO BANNER -->
+        <div id="heroSection" class="hero-banner" style="display: none;">
+            <div id="heroBg" class="hero-bg"></div>
+            <div class="hero-overlay"></div>
+            <div class="hero-content">
+                <span class="hero-badge">🔥 Em Destaque Hoje</span>
+                <h1 id="heroTitle" class="hero-title">Carregando Destaque...</h1>
+                <p id="heroDesc" class="hero-desc">Descubra as melhores produções com alta performance e qualidade de exibição em um único lugar.</p>
+                <div class="hero-btns">
+                    <button id="heroPlayBtn" class="btn-action btn-primary" onclick="">▶ Assistir Agora</button>
+                    <button id="heroDetailsBtn" class="btn-action" onclick="">ℹ️ Detalhes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAVEGAÇÃO DE TABS -->
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchCategory('todos', this)">🔥 Lançamentos</button>
+            <button class="tab-btn" onclick="switchCategory('filmes', this)">🎬 Filmes</button>
+            <button class="tab-btn" onclick="switchCategory('series', this)">📺 Séries</button>
+            <button class="tab-btn" onclick="switchCategory('animes', this)">🎌 Animes</button>
+            <button class="tab-btn" onclick="switchCategory('favoritos', this)">❤️ Minha Lista</button>
+        </div>
+
+        <!-- CONTINUAR ASSISTINDO -->
+        <div id="continueSection" style="display: none; margin-bottom: 28px;">
+            <div class="section-header">
+                <div class="section-title">Continuar Assistindo</div>
+            </div>
+            <div class="grid" id="continueGrid"></div>
+        </div>
+
+        <!-- CATÁLOGO PRINCIPAL -->
+        <div class="section-header">
+            <div class="section-title" id="catalogTitle">Últimos Lançamentos</div>
+        </div>
+        <div class="grid" id="catalogGrid"></div>
+
+        <div style="text-align: center; margin-top: 24px;">
+            <button id="loadMoreBtn" class="btn-action" onclick="loadMorePage()" style="display: none;">Carregar Mais Conteúdos</button>
+        </div>
+    </main>
+
+    <!-- MODAL DE DETALHES & PLAYER CUSTOMIZADO -->
+    <div class="modal" id="detailsModal" onclick="handleBackdropClick(event)">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div id="modalHeaderTitle" style="font-weight: 800; font-size: 1rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Detalhes do Título</div>
+                <button class="btn-action" onclick="closeModal()" style="padding: 6px 12px;">✕ Fechar</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Injetado via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTAINER DE TOASTS -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <footer>
+        <p>CineFlix &copy; 2026 — Plataforma de Streaming de Alta Performance</p>
+        <p style="margin-top: 6px;">✨ <strong>Feito com carinho para Maria Clara ❤️</strong> ✨</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+</body>
+</html>
