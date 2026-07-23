@@ -520,7 +520,7 @@ def fetch_details(href):
         if not details['seasons']:
             details['seasons'] = parse_episodes_from_dom(soup)
 
-        # 3. Servidores de Filme
+        # 3. Servidores de Filme & Alternativas Limpas
         server_btns = soup.select('.server-btn')
         servers = []
         for btn in server_btns:
@@ -539,11 +539,21 @@ def fetch_details(href):
             if not servers:
                 servers.append({
                     'server': 'servidor-1',
-                    'label': 'Principal',
+                    'label': 'Principal (RedeCanais)',
                     'src': iframe_src
                 })
 
-        details['movie_servers'] = servers
+        if details.get('tmdb_id'):
+            tmdb = details['tmdb_id']
+            principal_src = servers[0]['src'] if servers else f"https://fembed.sx/e/{tmdb}/servidor-1"
+            details['movie_servers'] = [
+                {'server': 'servidor-1', 'label': 'Principal (Servidor 1)', 'src': principal_src},
+                {'server': 'servidor-2', 'label': 'Embed.lol (Sem Ads ⚡)', 'src': f"https://embed.lol/embed/movie/{tmdb}"},
+                {'server': 'servidor-3', 'label': 'VidSrc (HD Fast 🚀)', 'src': f"https://vidsrc.to/embed/movie/{tmdb}"},
+                {'server': 'servidor-4', 'label': 'SuperFlix (Opção 4 🎬)', 'src': f"https://superflixapi.pro/filme/{tmdb}"}
+            ]
+        else:
+            details['movie_servers'] = servers
 
         set_cached_data(cache_key, details)
     except Exception as e:

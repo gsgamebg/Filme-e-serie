@@ -44,23 +44,38 @@ async function renderModalContent() {
     let selectedEpObj = null;
 
     if (isMovie) {
-        const srv = details.movie_servers.find(s => s.server === currentServer) || details.movie_servers[0];
-        rawPlayerUrl = srv ? (srv.src || `https://fembed.sx/e/${details.tmdb_id || ''}/${srv.server}`) : (details.tmdb_id ? `https://fembed.sx/e/${details.tmdb_id}/servidor-1` : '');
+        const srv = (details.movie_servers || []).find(s => s.server === currentServer) || (details.movie_servers || [])[0];
+        if (srv && srv.src) {
+            rawPlayerUrl = srv.src;
+        } else if (details.tmdb_id) {
+            if (currentServer === 'servidor-2') rawPlayerUrl = `https://embed.lol/embed/movie/${details.tmdb_id}`;
+            else if (currentServer === 'servidor-3') rawPlayerUrl = `https://vidsrc.to/embed/movie/${details.tmdb_id}`;
+            else if (currentServer === 'servidor-4') rawPlayerUrl = `https://superflixapi.pro/filme/${details.tmdb_id}`;
+            else rawPlayerUrl = `https://fembed.sx/e/${details.tmdb_id}/servidor-1`;
+        }
     } else if (hasEpisodes) {
-        const seasonObj = details.seasons.find(s => s.season_number === currentS) || details.seasons[0];
-        if (seasonObj) {
-            currentS = seasonObj.season_number;
-            selectedEpObj = seasonObj.episodes.find(e => e.number === currentE) || seasonObj.episodes[0];
-            if (selectedEpObj) {
-                currentE = selectedEpObj.number;
-                rawPlayerUrl = selectedEpObj.base_url ? `${selectedEpObj.base_url}/${currentServer}` : selectedEpObj.player_url;
+        if (details.tmdb_id && currentServer !== 'servidor-1') {
+            if (currentServer === 'servidor-2') rawPlayerUrl = `https://embed.lol/embed/tv/${details.tmdb_id}/${currentS}/${currentE}`;
+            else if (currentServer === 'servidor-3') rawPlayerUrl = `https://vidsrc.to/embed/tv/${details.tmdb_id}/${currentS}/${currentE}`;
+            else if (currentServer === 'servidor-4') rawPlayerUrl = `https://superflixapi.pro/serie/${details.tmdb_id}/${currentS}/${currentE}`;
+        }
+        
+        if (!rawPlayerUrl) {
+            const seasonObj = details.seasons.find(s => s.season_number === currentS) || details.seasons[0];
+            if (seasonObj) {
+                currentS = seasonObj.season_number;
+                selectedEpObj = seasonObj.episodes.find(e => e.number === currentE) || seasonObj.episodes[0];
+                if (selectedEpObj) {
+                    currentE = selectedEpObj.number;
+                    rawPlayerUrl = selectedEpObj.base_url ? `${selectedEpObj.base_url}/${currentServer}` : selectedEpObj.player_url;
+                }
             }
         }
     }
 
     // Tenta resolver o stream direto (.m3u8 ou .mp4) no backend
     let streamData = { direct_url: null, type: 'iframe' };
-    if (rawPlayerUrl) {
+    if (rawPlayerUrl && !rawPlayerUrl.includes('embed.lol') && !rawPlayerUrl.includes('vidsrc.to')) {
         try {
             const streamRes = await fetch(`/api/stream?url=${encodeURIComponent(rawPlayerUrl)}`);
             streamData = await streamRes.json();
@@ -100,7 +115,7 @@ async function renderModalContent() {
                 ${isDirect ? `
                     <video id="customVideo" class="player-video-elem" crossorigin="anonymous" playsinline controlslist="nodownload" onclick="togglePlayPause()"></video>
                 ` : `
-                    <iframe id="mainIframe" class="player-iframe-elem" src="${streamUrl}" referrerpolicy="no-referrer-when-downgrade" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+                    <iframe id="mainIframe" class="player-iframe-elem" src="${streamUrl}" referrerpolicy="no-referrer" allowfullscreen allow="autoplay; encrypted-media; fullscreen; picture-in-picture"></iframe>
                     <div id="clickShield" class="click-shield" onclick="dismissClickShield()">
                         <div class="click-shield-btn">▶ Iniciar Reprodução Sem Anúncios</div>
                     </div>
@@ -155,19 +170,18 @@ async function renderModalContent() {
             </div>
         ` : '<div style="padding:40px; text-align:center; background:var(--bg-card); border-radius:var(--radius-md); color:#ec4899; font-weight:700;">Vídeo indisponível para este servidor.</div>'}
 
-        ${isMovie && details.movie_servers.length > 0 ? `
-            <div>
-                <div class="section-title">Opções de Servidor</div>
-                <div style="display:flex; gap:8px; flex-wrap: wrap;">
-                    ${details.movie_servers.map(s => `
-                        <button class="btn-action ${s.server === currentServer ? 'btn-primary' : ''}" onclick="changeServer('${s.server}')">🖥️ ${s.label || s.server}</button>
-                    `).join('')}
-                </div>
+        <div style="margin-top: 10px;">
+            <div class="section-title">Opções de Servidor</div>
+            <div style="display:flex; gap:8px; flex-wrap: wrap;">
+                <button class="btn-action ${currentServer === 'servidor-1' ? 'btn-primary' : ''}" onclick="changeServer('servidor-1')">🖥️ Servidor 1 (Principal)</button>
+                <button class="btn-action ${currentServer === 'servidor-2' ? 'btn-primary' : ''}" onclick="changeServer('servidor-2')">⚡ Embed.lol (Sem Ads)</button>
+                <button class="btn-action ${currentServer === 'servidor-3' ? 'btn-primary' : ''}" onclick="changeServer('servidor-3')">🚀 VidSrc (HD Fast)</button>
+                <button class="btn-action ${currentServer === 'servidor-4' ? 'btn-primary' : ''}" onclick="changeServer('servidor-4')">🎬 SuperFlix (Opção 4)</button>
             </div>
-        ` : ''}
+        </div>
 
         ${!isMovie && hasEpisodes ? `
-            <div>
+            <div style="margin-top: 14px;">
                 <div class="section-title">Temporadas</div>
                 <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; overflow-x: auto;">
                     ${details.seasons.map(s => `
@@ -261,9 +275,7 @@ function togglePlayPause() {
     const btn = document.getElementById('playPauseBtn');
     if (video) {
         if (video.paused) {
-            video.play().catch(err => {
-                logging && console.log("Play falhou ou requer interação", err);
-            });
+            video.play().catch(() => {});
             if (btn) btn.textContent = '⏸';
         } else {
             video.pause();
